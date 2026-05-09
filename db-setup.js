@@ -62,6 +62,16 @@ async function setupDB() {
       INSERT IGNORE INTO admins (username, password_hash) VALUES ('admin', ?);
     `, [hash]);
 
+    console.log('Creating users table...');
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        email VARCHAR(150) UNIQUE,
+        password_hash VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     console.log('Database setup completed successfully.');
   } catch (error) {
     console.error('Error setting up database:', error);

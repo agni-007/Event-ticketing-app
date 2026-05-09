@@ -3,17 +3,21 @@ import Navbar from './components/Navbar'
 import Home from './pages/Home'
 import AdminLogin from './pages/AdminLogin'
 import AdminDashboard from './pages/AdminDashboard'
+import UserAuth from './pages/UserAuth'
 
 function App() {
   return (
     <div className="min-h-screen flex flex-col relative">
-      {/* Abstract Background pattern */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-900 via-background to-background -z-10"></div>
+      {/* Glowing abstract background matching the glass theme */}
+      <div className="absolute inset-0 bg-[#020617] -z-20"></div>
+      <div className="absolute bottom-[-20%] left-[10%] w-[800px] h-[500px] bg-blue-600/10 rounded-[100%] blur-[120px] pointer-events-none -z-10"></div>
+      <div className="absolute top-[10%] right-[-10%] w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[150px] pointer-events-none -z-10"></div>
       
       <Navbar />
-      <main className="flex-grow">
+      <main className="flex-grow z-0">
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<UserAuth />} />
+          <Route path="/events" element={<Home />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
         </Routes>

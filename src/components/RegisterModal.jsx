@@ -7,22 +7,31 @@ export default function RegisterModal({ event, onClose }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successData, setSuccessData] = useState(null);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Mock API call
-    setTimeout(() => {
-      const clientId = 'CLT-' + Math.random().toString(36).substring(2,8).toUpperCase();
-      const regId = 'REG-' + Date.now() + '-' + Math.floor(Math.random()*1000);
-      
-      setSuccessData({
-        clientId,
-        regId,
-        qrData: JSON.stringify({ regId, clientId, eventId: event.id, name: formData.name })
+    try {
+      const res = await fetch('/.netlify/functions/registerAttendee', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventId: event.id,
+          fullName: formData.name,
+          email: formData.email,
+          phone: formData.phone
+        })
       });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to register');
+      
+      setSuccessData(data);
+    } catch (error) {
+      alert(error.message);
+    } finally {
       setIsSubmitting(false);
-    }, 1000);
+    }
   };
 
   return (

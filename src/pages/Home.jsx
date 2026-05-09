@@ -1,31 +1,31 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import EventCard from '../components/EventCard';
 import RegisterModal from '../components/RegisterModal';
 
 export default function Home() {
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
-  // Hardcoded mock events for Phase 1
-  const events = [
-    {
-      id: 1,
-      title: "Tech Symposium 2026",
-      date: "2026-10-15T10:00:00",
-      venue: "Main Auditorium",
-      description: "Annual technology symposium featuring guest speakers and hackathons.",
-      image_url: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=60",
-      is_active: true
-    },
-    {
-      id: 2,
-      title: "Cultural Fest - Nexus",
-      date: "2026-11-20T17:00:00",
-      venue: "Open Air Theatre",
-      description: "The biggest cultural night of the year. Music, dance, and drama.",
-      image_url: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&auto=format&fit=crop&q=60",
-      is_active: true
+  useEffect(() => {
+    if (!localStorage.getItem('userToken')) {
+      navigate('/');
+      return;
     }
-  ];
+
+    fetch('/.netlify/functions/getEvents')
+      .then(res => res.json())
+      .then(data => {
+        setEvents(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch events:', err);
+        setLoading(false);
+      });
+  }, []);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
