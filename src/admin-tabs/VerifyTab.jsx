@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
-import { Users, CheckCircle2 } from 'lucide-react';
+import { Users, CheckCircle2, Trash2 } from 'lucide-react';
 
 export default function VerifyTab() {
   const [regIdInput, setRegIdInput] = useState('');
@@ -26,13 +26,10 @@ export default function VerifyTab() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchAttendees();
-  }, [fetchAttendees]);
+  useEffect(() => { fetchAttendees(); }, [fetchAttendees]);
 
   useEffect(() => {
     const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
-
     scanner.render((decodedText) => {
       try {
         const data = JSON.parse(decodedText);
@@ -45,45 +42,27 @@ export default function VerifyTab() {
         handleVerifyResult(false, "Invalid QR Code format.");
       }
     }, () => {});
-
-    return () => {
-      scanner.clear().catch(error => console.error("Failed to clear scanner.", error));
-    };
+    return () => { scanner.clear().catch(e => console.error("Failed to clear scanner.", e)); };
   }, []);
 
   const handleManualVerify = (e) => {
     e.preventDefault();
-    if (regIdInput.trim()) {
-      verifyEntry(regIdInput.trim());
-      setRegIdInput('');
-    }
+    if (regIdInput.trim()) { verifyEntry(regIdInput.trim()); setRegIdInput(''); }
   };
 
   const verifyEntry = async (regId) => {
     const token = localStorage.getItem('adminToken');
-    if (!token) {
-      handleVerifyResult(false, "No admin token. Please log in.");
-      return;
-    }
-
+    if (!token) { handleVerifyResult(false, "No admin token. Please log in."); return; }
     try {
       const res = await fetch('/.netlify/functions/verifyAttendee', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ regId })
       });
-
       const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Verification failed');
-      }
-
-      handleVerifyResult(true, `✅ Entry verified for: ${data.name}`);
-      fetchAttendees(); // Refresh the live attendance list immediately
+      if (!res.ok) throw new Error(data.error || 'Verification failed');
+      handleVerifyResult(true, `Entry verified for: ${data.name}`);
+      fetchAttendees();
     } catch (err) {
       handleVerifyResult(false, err.message);
     }
@@ -92,13 +71,25 @@ export default function VerifyTab() {
   const handleVerifyResult = (success, message) => {
     setStatusType(success ? 'success' : 'error');
     setStatusMsg(message);
-    setTimeout(() => {
-      setStatusMsg(null);
-      setStatusType(null);
-    }, 5000);
+    setTimeout(() => { setStatusMsg(null); setStatusType(null); }, 5000);
   };
 
-  // Group attendees by event
+  const handleClearEventAttendance = async (eventTitle) => {
+    if (!window.confirm(`Clear all attendance records for "${eventTitle}"? This will reset their attended status.`)) return;
+    const token = localStorage.getItem('adminToken');
+    try {
+      const res = await fetch('/.netlify/functions/clearEventAttendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ eventTitle })
+      });
+      if (!res.ok) throw new Error('Failed to clear attendance');
+      fetchAttendees();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   const byEvent = attendees.reduce((acc, a) => {
     if (!acc[a.event_title]) acc[a.event_title] = [];
     acc[a.event_title].push(a);
@@ -109,7 +100,6 @@ export default function VerifyTab() {
     <div className="space-y-8">
       <h1 className="text-2xl font-bold text-white">Verify Entry</h1>
 
-      {/* Scanner + Manual */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* QR Scanner */}
         <div className="bg-white/5 border border-borderDark rounded-xl p-6">
@@ -122,7 +112,7 @@ export default function VerifyTab() {
           `}</style>
         </div>
 
-        {/* Manual Entry + Status */}
+        {/* Manual + Status */}
         <div>
           <div className="bg-white/5 border border-borderDark rounded-xl p-6 mb-6">
             <h2 className="text-lg font-bold text-white mb-4">Manual Entry</h2>
@@ -139,7 +129,6 @@ export default function VerifyTab() {
               </button>
             </form>
           </div>
-
           {statusMsg && (
             <div className={`p-4 rounded-xl border ${statusType === 'success' ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
               <p className="font-bold">{statusType === 'success' ? '✅ Valid' : '❌ Error'}</p>
@@ -164,16 +153,27 @@ export default function VerifyTab() {
         {loadingAttendees ? (
           <p className="text-textSecondary">Loading attendance data...</p>
         ) : attendees.length === 0 ? (
-          <p className="text-textSecondary text-center py-8">No attendees checked in yet. Scan a QR code to get started.</p>
+          <p className="text-textSecondary text-center py-8">No attendees checked in yet.</p>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-8">
             {Object.entries(byEvent).map(([eventTitle, people]) => (
               <div key={eventTitle}>
-                <h3 className="text-sm font-semibold text-accent uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-green-400" />
-                  {eventTitle}
-                  <span className="text-textSecondary font-normal normal-case">({people.length} attending)</span>
-                </h3>
+                {/* Event header with Clear button */}
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-accent uppercase tracking-wider flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-green-400" />
+                    {eventTitle}
+                    <span className="text-textSecondary font-normal normal-case">({people.length} attending)</span>
+                  </h3>
+                  <button
+                    onClick={() => handleClearEventAttendance(eventTitle)}
+                    className="flex items-center gap-1.5 text-xs text-red-400 hover:text-white hover:bg-red-500 bg-red-400/10 border border-red-400/20 px-3 py-1.5 rounded-lg transition-all"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Clear All
+                  </button>
+                </div>
+
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm text-left text-textSecondary min-w-[500px]">
                     <thead>

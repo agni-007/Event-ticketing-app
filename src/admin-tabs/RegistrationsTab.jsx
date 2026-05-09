@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Trash2 } from 'lucide-react';
 
 export default function RegistrationsTab() {
   const [registrations, setRegistrations] = useState([]);
@@ -12,7 +13,6 @@ export default function RegistrationsTab() {
       setLoading(false);
       return;
     }
-
     try {
       const res = await fetch('/.netlify/functions/getRegistrations', {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -27,23 +27,40 @@ export default function RegistrationsTab() {
     }
   };
 
-  useEffect(() => {
-    fetchRegistrations();
-  }, []);
+  useEffect(() => { fetchRegistrations(); }, []);
 
   const handleUpdateStatus = async (regId, status) => {
     const token = localStorage.getItem('adminToken');
     try {
       const res = await fetch('/.netlify/functions/updateRegistrationStatus', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ regId, status })
       });
       if (!res.ok) throw new Error('Failed to update status');
-      fetchRegistrations(); // refresh list
+      fetchRegistrations();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleDelete = async (regId) => {
+    if (!window.confirm('Are you sure you want to permanently delete this registration?')) return;
+    const token = localStorage.getItem('adminToken');
+    try {
+      const res = await fetch('/.netlify/functions/deleteRegistration', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ regId })
+      });
+      if (!res.ok) throw new Error('Failed to delete');
+      fetchRegistrations();
     } catch (err) {
       alert(err.message);
     }
@@ -59,7 +76,7 @@ export default function RegistrationsTab() {
         <p className="text-textSecondary">Loading...</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-textSecondary min-w-[800px]">
+          <table className="w-full text-left text-sm text-textSecondary min-w-[900px]">
             <thead className="text-xs text-textSecondary uppercase bg-white/5 border-b border-borderDark">
               <tr>
                 <th className="px-4 py-3">Name</th>
@@ -68,6 +85,7 @@ export default function RegistrationsTab() {
                 <th className="px-4 py-3">Reg ID</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Actions</th>
+                <th className="px-4 py-3">Clear</th>
               </tr>
             </thead>
             <tbody>
@@ -97,11 +115,20 @@ export default function RegistrationsTab() {
                       <span className="text-xs text-gray-400 italic">Attended</span>
                     )}
                   </td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => handleDelete(reg.id)}
+                      className="p-1.5 rounded-lg text-textSecondary hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                      title="Delete Registration"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </td>
                 </tr>
               ))}
               {registrations.length === 0 && (
                 <tr>
-                  <td colSpan="6" className="px-4 py-6 text-center">No registrations found.</td>
+                  <td colSpan="7" className="px-4 py-6 text-center">No registrations found.</td>
                 </tr>
               )}
             </tbody>
