@@ -11,8 +11,8 @@ function App() {
     <div className="min-h-screen flex flex-col relative">
       {/* Glowing abstract background matching the glass theme */}
       <div className="absolute inset-0 bg-[#020617] -z-20"></div>
-      <div className="absolute bottom-[-20%] left-[10%] w-[800px] h-[500px] bg-blue-600/10 rounded-[100%] blur-[120px] pointer-events-none -z-10"></div>
-      <div className="absolute top-[10%] right-[-10%] w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[150px] pointer-events-none -z-10"></div>
+      <div className="absolute bottom-[-10%] left-[-10%] w-[150%] max-w-[800px] aspect-square sm:w-[800px] sm:h-[500px] bg-blue-600/10 rounded-[100%] blur-[100px] sm:blur-[120px] pointer-events-none -z-10 overflow-hidden"></div>
+      <div className="absolute top-[10%] right-[-20%] w-[150%] max-w-[600px] aspect-square sm:w-[600px] sm:h-[600px] bg-purple-600/10 rounded-full blur-[120px] sm:blur-[150px] pointer-events-none -z-10 overflow-hidden"></div>
       
       <Navbar />
       <main className="flex-grow z-0">

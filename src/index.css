@@ -13,8 +13,11 @@
 }
 
 @layer base {
-  body {
+  html, body {
     @apply bg-background text-textPrimary font-sans antialiased min-h-screen;
+    overflow-x: hidden;
+    width: 100%;
+    position: relative;
   }
 }
 

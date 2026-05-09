@@ -39,8 +39,8 @@ export default function UserAuth() {
     <div className="min-h-[90vh] flex items-center justify-center p-3 sm:p-4 relative overflow-hidden">
       
       {/* Decorative Orbs for the Background */}
-      <div className="absolute top-[-10%] left-[-10%] w-64 h-64 sm:w-96 sm:h-96 bg-blue-600/30 rounded-full blur-[80px] sm:blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[300px] h-[300px] sm:w-[500px] sm:h-[500px] bg-purple-600/20 rounded-full blur-[100px] sm:blur-[150px] pointer-events-none"></div>
+      <div className="absolute top-[-5%] left-[-5%] w-48 h-48 sm:w-96 sm:h-96 bg-blue-600/30 rounded-full blur-[60px] sm:blur-[120px] pointer-events-none overflow-hidden"></div>
+      <div className="absolute bottom-[-5%] right-[-5%] w-48 h-48 sm:w-[500px] sm:h-[500px] bg-purple-600/20 rounded-full blur-[60px] sm:blur-[150px] pointer-events-none overflow-hidden"></div>
 
       <div className="glass-panel p-6 sm:p-10 w-full max-w-md rounded-3xl relative z-10 animate-in fade-in zoom-in duration-500">
         
