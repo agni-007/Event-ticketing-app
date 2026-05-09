@@ -110,19 +110,4 @@ JWT_SECRET=your-secret-key
 
 ---
 
-## 🔐 Admin Access
-
-The admin panel is accessible via a hidden route:
-```
-/admin2005
-```
-
----
-
-## 📄 License
-
-MIT
-
----
-
 Built with ❤️ for college events.
