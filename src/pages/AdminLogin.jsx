@@ -12,7 +12,6 @@ export default function AdminLogin() {
     e.preventDefault();
     setLoading(true);
     setError('');
-
     try {
       const res = await fetch('/.netlify/functions/adminLogin', {
         method: 'POST',
@@ -20,57 +19,34 @@ export default function AdminLogin() {
         body: JSON.stringify({ username, password })
       });
       let data;
-      try {
-        data = await res.clone().json();
-      } catch (err) {
-        const text = await res.text();
-        throw new Error(`Server returned invalid JSON: ${text.substring(0, 50)}...`);
-      }
-
+      try { data = await res.clone().json(); }
+      catch { const text = await res.text(); throw new Error(`Invalid response: ${text.substring(0, 50)}`); }
       if (!res.ok) throw new Error(data?.error || 'Login failed');
-
       localStorage.setItem('adminToken', data.token);
       navigate('/admin2005/dashboard');
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { setError(err.message); }
+    finally { setLoading(false); }
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center">
-      <div className="glass-panel p-8 w-full max-w-md rounded-2xl">
-        <h2 className="text-2xl font-bold mb-6 text-center">Admin Access</h2>
-        {error && <p className="text-red-400 text-center mb-4">{error}</p>}
+    <div className="min-h-[80vh] flex items-center justify-center px-4">
+      <div className="glass-panel p-6 sm:p-8 w-full max-w-md rounded-2xl">
+        <h2 className="text-xl sm:text-2xl font-bold mb-5 sm:mb-6 text-center">Admin Access</h2>
+        {error && <p className="text-red-400 text-center mb-4 text-sm">{error}</p>}
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-textSecondary mb-1">Username</label>
-            <input 
-              type="text" 
-              required
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              className="w-full bg-surface border border-borderDark rounded-lg px-4 py-2 text-textPrimary focus:outline-none focus:border-accent transition-colors" 
-            />
+            <label className="block text-xs sm:text-sm font-medium text-textSecondary mb-1">Username</label>
+            <input type="text" required value={username} onChange={e => setUsername(e.target.value)}
+              className="w-full bg-surface border border-borderDark rounded-lg px-4 py-2.5 text-textPrimary text-sm focus:outline-none focus:border-accent transition-colors" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-textSecondary mb-1">Password</label>
-            <input 
-              type="password" 
-              required
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              className="w-full bg-surface border border-borderDark rounded-lg px-4 py-2 text-textPrimary focus:outline-none focus:border-accent transition-colors" 
-            />
+            <label className="block text-xs sm:text-sm font-medium text-textSecondary mb-1">Password</label>
+            <input type="password" required value={password} onChange={e => setPassword(e.target.value)}
+              className="w-full bg-surface border border-borderDark rounded-lg px-4 py-2.5 text-textPrimary text-sm focus:outline-none focus:border-accent transition-colors" />
           </div>
-          <button 
-            type="submit" 
-            disabled={loading}
-            className="w-full bg-white text-black font-semibold py-2 rounded-lg hover:bg-gray-200 transition-colors mt-4 disabled:opacity-50"
-          >
-            {loading ? 'Logging in...' : 'Login'}
-          </button>
+          <button type="submit" disabled={loading}
+            className="w-full bg-white text-black font-semibold py-2.5 rounded-lg hover:bg-gray-200 transition-colors mt-4 disabled:opacity-50 text-sm sm:text-base"
+          >{loading ? 'Logging in...' : 'Login'}</button>
         </form>
       </div>
     </div>

@@ -17,189 +17,136 @@ export default function VerifyTab() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) return;
-      const data = await res.json();
-      setAttendees(data);
-    } catch (e) {
-      console.error('Failed to load attendees', e);
-    } finally {
-      setLoadingAttendees(false);
-    }
+      setAttendees(await res.json());
+    } catch (e) { console.error(e); }
+    finally { setLoadingAttendees(false); }
   }, []);
 
   useEffect(() => { fetchAttendees(); }, [fetchAttendees]);
 
   useEffect(() => {
-    const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
-    scanner.render((decodedText) => {
+    const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 220, height: 220 } }, false);
+    scanner.render((text) => {
       try {
-        const data = JSON.parse(decodedText);
-        if (data.regId) {
-          verifyEntry(data.regId);
-          scanner.pause(true);
-          setTimeout(() => scanner.resume(), 3000);
-        }
-      } catch (e) {
-        handleVerifyResult(false, "Invalid QR Code format.");
-      }
+        const d = JSON.parse(text);
+        if (d.regId) { verifyEntry(d.regId); scanner.pause(true); setTimeout(() => scanner.resume(), 3000); }
+      } catch { handleVerifyResult(false, "Invalid QR Code format."); }
     }, () => {});
-    return () => { scanner.clear().catch(e => console.error("Failed to clear scanner.", e)); };
+    return () => { scanner.clear().catch(() => {}); };
   }, []);
 
-  const handleManualVerify = (e) => {
-    e.preventDefault();
-    if (regIdInput.trim()) { verifyEntry(regIdInput.trim()); setRegIdInput(''); }
-  };
+  const handleManualVerify = (e) => { e.preventDefault(); if (regIdInput.trim()) { verifyEntry(regIdInput.trim()); setRegIdInput(''); } };
 
   const verifyEntry = async (regId) => {
     const token = localStorage.getItem('adminToken');
-    if (!token) { handleVerifyResult(false, "No admin token. Please log in."); return; }
+    if (!token) { handleVerifyResult(false, "No admin token."); return; }
     try {
       const res = await fetch('/.netlify/functions/verifyAttendee', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ regId })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Verification failed');
-      handleVerifyResult(true, `Entry verified for: ${data.name}`);
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      handleVerifyResult(true, `Verified: ${data.name}`);
       fetchAttendees();
-    } catch (err) {
-      handleVerifyResult(false, err.message);
-    }
+    } catch (err) { handleVerifyResult(false, err.message); }
   };
 
-  const handleVerifyResult = (success, message) => {
-    setStatusType(success ? 'success' : 'error');
-    setStatusMsg(message);
+  const handleVerifyResult = (ok, msg) => {
+    setStatusType(ok ? 'success' : 'error'); setStatusMsg(msg);
     setTimeout(() => { setStatusMsg(null); setStatusType(null); }, 5000);
   };
 
-  const handleClearEventAttendance = async (eventTitle) => {
-    if (!window.confirm(`Clear all attendance records for "${eventTitle}"? This will reset their attended status.`)) return;
+  const handleClear = async (title) => {
+    if (!confirm(`Clear attendance for "${title}"?`)) return;
     const token = localStorage.getItem('adminToken');
     try {
       const res = await fetch('/.netlify/functions/clearEventAttendance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ eventTitle })
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ eventTitle: title })
       });
-      if (!res.ok) throw new Error('Failed to clear attendance');
+      if (!res.ok) throw new Error('Failed');
       fetchAttendees();
-    } catch (err) {
-      alert(err.message);
-    }
+    } catch (err) { alert(err.message); }
   };
 
-  const byEvent = attendees.reduce((acc, a) => {
-    if (!acc[a.event_title]) acc[a.event_title] = [];
-    acc[a.event_title].push(a);
-    return acc;
-  }, {});
+  const byEvent = attendees.reduce((a, x) => { (a[x.event_title] = a[x.event_title] || []).push(x); return a; }, {});
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-2xl font-bold text-white">Verify Entry</h1>
+    <div className="space-y-5">
+      <h1 className="text-xl sm:text-2xl font-bold text-white">Verify Entry</h1>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* QR Scanner */}
-        <div className="bg-white/5 border border-borderDark rounded-xl p-6">
-          <h2 className="text-lg font-bold text-white mb-4">Scan QR Code</h2>
-          <div id="reader" className="w-full bg-black rounded-lg overflow-hidden border border-white/10"></div>
-          <style>{`
-            #reader__dashboard_section_csr span { color: white; }
-            #reader button { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 6px 12px; margin: 4px; }
-            #reader a { color: #888; }
-          `}</style>
+      {statusMsg && (
+        <div className={`p-3 rounded-xl border text-sm ${statusType === 'success' ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
+          <p className="font-bold">{statusType === 'success' ? '✅ Valid' : '❌ Error'}</p>
+          <p>{statusMsg}</p>
         </div>
+      )}
 
-        {/* Manual + Status */}
-        <div>
-          <div className="bg-white/5 border border-borderDark rounded-xl p-6 mb-6">
-            <h2 className="text-lg font-bold text-white mb-4">Manual Entry</h2>
-            <form onSubmit={handleManualVerify} className="flex gap-4">
-              <input
-                type="text"
-                placeholder="Enter Registration ID (e.g. REG-...)"
-                className="flex-1 bg-transparent border-b border-white/20 text-white p-2 focus:outline-none focus:border-white transition-colors"
-                value={regIdInput}
-                onChange={e => setRegIdInput(e.target.value)}
-              />
-              <button type="submit" className="bg-white text-black px-6 py-2 rounded-full font-medium hover:bg-white/90 transition-colors">
-                Verify
-              </button>
-            </form>
-          </div>
-          {statusMsg && (
-            <div className={`p-4 rounded-xl border ${statusType === 'success' ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
-              <p className="font-bold">{statusType === 'success' ? '✅ Valid' : '❌ Error'}</p>
-              <p>{statusMsg}</p>
-            </div>
-          )}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-white/5 border border-borderDark rounded-xl p-4 sm:p-5">
+          <h2 className="text-sm sm:text-base font-bold text-white mb-3">Scan QR Code</h2>
+          <div id="reader" className="w-full bg-black rounded-lg overflow-hidden border border-white/10"></div>
+        </div>
+        <div className="bg-white/5 border border-borderDark rounded-xl p-4 sm:p-5">
+          <h2 className="text-sm sm:text-base font-bold text-white mb-3">Manual Entry</h2>
+          <form onSubmit={handleManualVerify} className="flex flex-col sm:flex-row gap-3">
+            <input type="text" placeholder="Enter REG-..." className="flex-1 bg-transparent border-b border-white/20 text-white p-2 text-sm focus:outline-none focus:border-white" value={regIdInput} onChange={e => setRegIdInput(e.target.value)} />
+            <button type="submit" className="bg-white text-black px-5 py-2.5 rounded-full font-medium text-sm hover:bg-white/90">Verify</button>
+          </form>
         </div>
       </div>
 
-      {/* Live Attendance Board */}
-      <div className="bg-white/5 border border-borderDark rounded-xl p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 bg-green-500/20 rounded-lg">
-            <Users className="w-5 h-5 text-green-400" />
-          </div>
-          <h2 className="text-lg font-bold text-white">Live Attendance</h2>
-          <span className="ml-auto text-sm text-textSecondary bg-white/5 px-3 py-1 rounded-full border border-borderDark">
-            {attendees.length} total attended
-          </span>
+      <div className="bg-white/5 border border-borderDark rounded-xl p-4 sm:p-5">
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <div className="p-1.5 bg-green-500/20 rounded-lg"><Users className="w-4 h-4 text-green-400" /></div>
+          <h2 className="text-sm sm:text-base font-bold text-white">Live Attendance</h2>
+          <span className="ml-auto text-xs text-textSecondary bg-white/5 px-2 py-1 rounded-full border border-borderDark">{attendees.length} total</span>
         </div>
 
-        {loadingAttendees ? (
-          <p className="text-textSecondary">Loading attendance data...</p>
-        ) : attendees.length === 0 ? (
-          <p className="text-textSecondary text-center py-8">No attendees checked in yet.</p>
-        ) : (
-          <div className="space-y-8">
-            {Object.entries(byEvent).map(([eventTitle, people]) => (
-              <div key={eventTitle}>
-                {/* Event header with Clear button */}
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-accent uppercase tracking-wider flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-green-400" />
-                    {eventTitle}
-                    <span className="text-textSecondary font-normal normal-case">({people.length} attending)</span>
+        {loadingAttendees ? <p className="text-textSecondary text-sm">Loading...</p>
+        : attendees.length === 0 ? <p className="text-textSecondary text-center py-6 text-sm">No attendees yet.</p>
+        : <div className="space-y-5">
+            {Object.entries(byEvent).map(([title, people]) => (
+              <div key={title}>
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                  <h3 className="text-xs font-semibold text-accent uppercase tracking-wider flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+                    {title} <span className="text-textSecondary font-normal normal-case">({people.length})</span>
                   </h3>
-                  <button
-                    onClick={() => handleClearEventAttendance(eventTitle)}
-                    className="flex items-center gap-1.5 text-xs text-red-400 hover:text-white hover:bg-red-500 bg-red-400/10 border border-red-400/20 px-3 py-1.5 rounded-lg transition-all"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                    Clear All
+                  <button onClick={() => handleClear(title)} className="flex items-center gap-1 text-xs text-red-400 hover:text-white hover:bg-red-500 bg-red-400/10 border border-red-400/20 px-2 py-1 rounded-lg">
+                    <Trash2 className="w-3 h-3" /> Clear
                   </button>
                 </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left text-textSecondary min-w-[500px]">
-                    <thead>
-                      <tr className="text-xs uppercase text-textSecondary/60 border-b border-white/5">
-                        <th className="py-2 px-3">#</th>
-                        <th className="py-2 px-3">Name</th>
-                        <th className="py-2 px-3">Email</th>
-                        <th className="py-2 px-3">Reg ID</th>
+                {/* Table on sm+, cards on mobile */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="w-full text-sm text-left text-textSecondary">
+                    <thead><tr className="text-xs uppercase text-textSecondary/60 border-b border-white/5">
+                      <th className="py-2 px-3">#</th><th className="py-2 px-3">Name</th><th className="py-2 px-3">Email</th><th className="py-2 px-3">Reg ID</th>
+                    </tr></thead>
+                    <tbody>{people.map((a, i) => (
+                      <tr key={a.id} className="border-b border-white/5 hover:bg-white/5">
+                        <td className="py-2 px-3 text-textSecondary/60">{i+1}</td>
+                        <td className="py-2 px-3 font-medium text-white">{a.full_name}</td>
+                        <td className="py-2 px-3">{a.email}</td>
+                        <td className="py-2 px-3 font-mono text-xs">{a.reg_id}</td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {people.map((a, idx) => (
-                        <tr key={a.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                          <td className="py-2 px-3 text-textSecondary/60">{idx + 1}</td>
-                          <td className="py-2 px-3 font-medium text-white">{a.full_name}</td>
-                          <td className="py-2 px-3">{a.email}</td>
-                          <td className="py-2 px-3 font-mono text-xs">{a.reg_id}</td>
-                        </tr>
-                      ))}
-                    </tbody>
+                    ))}</tbody>
                   </table>
+                </div>
+                <div className="sm:hidden space-y-2">
+                  {people.map((a, i) => (
+                    <div key={a.id} className="bg-white/5 rounded-lg p-3 border border-white/5">
+                      <div className="flex justify-between mb-1"><span className="font-medium text-white text-sm">{a.full_name}</span><span className="text-textSecondary/60 text-xs">#{i+1}</span></div>
+                      <p className="text-xs text-textSecondary truncate">{a.email}</p>
+                      <p className="text-xs font-mono text-textSecondary/70 mt-0.5">{a.reg_id}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
           </div>
-        )}
+        }
       </div>
     </div>
   );
