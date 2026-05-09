@@ -6,11 +6,11 @@ import VerifyTab from '../admin-tabs/VerifyTab';
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('events');
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex flex-col md:flex-row">
       {/* Sidebar stub */}
-      <div className="w-64 glass-panel rounded-2xl p-6 mr-8 min-h-[70vh]">
+      <div className="w-full md:w-64 glass-panel rounded-2xl p-6 mb-8 md:mb-0 md:mr-8 md:min-h-[70vh]">
         <h2 className="text-lg font-bold mb-6 text-white border-b border-borderDark pb-4">Admin Menu</h2>
-        <nav className="space-y-2">
+        <nav className="flex flex-col space-y-2">
           <button 
             onClick={() => setActiveTab('events')} 
             className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${activeTab === 'events' ? 'bg-white/10 text-white font-medium' : 'text-textSecondary hover:bg-white/5 hover:text-white'}`}
@@ -27,7 +27,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 glass-panel rounded-2xl p-8">
+      <div className="flex-1 glass-panel rounded-2xl p-4 md:p-8 w-full overflow-hidden">
         {activeTab === 'events' && <EventsTab />}
         {activeTab === 'registrations' && <RegistrationsTab />}
         {activeTab === 'verify' && <VerifyTab />}

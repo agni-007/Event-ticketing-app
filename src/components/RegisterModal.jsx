@@ -1,20 +1,25 @@
 import { useState } from 'react';
-import { X, CheckCircle2, Download } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
+import { X, CheckCircle2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function RegisterModal({ event, onClose }) {
   const [formData, setFormData] = useState({ name: '', email: '', phone: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [successData, setSuccessData] = useState(null);
+  const [success, setSuccess] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
+    const token = localStorage.getItem('userToken');
     
     try {
       const res = await fetch('/.netlify/functions/registerAttendee', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
         body: JSON.stringify({
           eventId: event.id,
           fullName: formData.name,
@@ -26,7 +31,7 @@ export default function RegisterModal({ event, onClose }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to register');
       
-      setSuccessData(data);
+      setSuccess(true);
     } catch (error) {
       alert(error.message);
     } finally {
@@ -46,7 +51,7 @@ export default function RegisterModal({ event, onClose }) {
           <X className="w-5 h-5" />
         </button>
 
-        {!successData ? (
+        {!success ? (
           <>
             <div className="mb-8">
               <h2 className="text-2xl font-bold text-white mb-1">Register</h2>
@@ -95,23 +100,16 @@ export default function RegisterModal({ event, onClose }) {
             </form>
           </>
         ) : (
-          <div className="text-center py-4 flex flex-col items-center">
-            <CheckCircle2 className="w-12 h-12 text-green-400 mb-4 animate-bounce" />
-            <h2 className="text-2xl font-bold text-white mb-2">You're In!</h2>
-            <p className="text-sm text-textSecondary mb-6">Present this QR code at the entrance</p>
+          <div className="text-center py-6 flex flex-col items-center">
+            <CheckCircle2 className="w-16 h-16 text-yellow-400 mb-4 animate-bounce" />
+            <h2 className="text-2xl font-bold text-white mb-2">Request Submitted!</h2>
+            <p className="text-sm text-textSecondary mb-6">Your registration is pending admin approval.</p>
             
-            <div className="bg-white p-4 rounded-xl mb-6">
-              <QRCodeSVG value={successData.qrData} size={160} />
-            </div>
-            
-            <div className="space-y-1 mb-6 text-sm text-gray-300">
-              <p>Registration ID: <span className="font-mono text-white">{successData.regId}</span></p>
-              <p>Client ID: <span className="font-mono text-white">{successData.clientId}</span></p>
-            </div>
-            
-            <button className="flex items-center space-x-2 text-sm text-accent hover:text-white transition-colors px-4 py-2 rounded-lg border border-borderDark hover:bg-surface">
-              <Download className="w-4 h-4" />
-              <span>Save Details</span>
+            <button 
+              onClick={() => navigate('/profile')}
+              className="w-full py-3 bg-white/10 text-white font-medium rounded-xl hover:bg-white/20 transition-colors border border-white/10"
+            >
+              Go to My Profile
             </button>
           </div>
         )}

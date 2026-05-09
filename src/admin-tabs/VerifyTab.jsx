@@ -1,34 +1,53 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Users, CheckCircle2 } from 'lucide-react';
 
 export default function VerifyTab() {
   const [regIdInput, setRegIdInput] = useState('');
   const [statusMsg, setStatusMsg] = useState(null);
-  const [statusType, setStatusType] = useState(null); // 'success' or 'error'
+  const [statusType, setStatusType] = useState(null);
+  const [attendees, setAttendees] = useState([]);
+  const [loadingAttendees, setLoadingAttendees] = useState(true);
+
+  const fetchAttendees = useCallback(async () => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+    try {
+      const res = await fetch('/.netlify/functions/getAttendees', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setAttendees(data);
+    } catch (e) {
+      console.error('Failed to load attendees', e);
+    } finally {
+      setLoadingAttendees(false);
+    }
+  }, []);
 
   useEffect(() => {
-    // Initialize QR Scanner
-    const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
-    
+    fetchAttendees();
+  }, [fetchAttendees]);
+
+  useEffect(() => {
+    const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
+
     scanner.render((decodedText) => {
-      // Handle the scan result
       try {
         const data = JSON.parse(decodedText);
         if (data.regId) {
           verifyEntry(data.regId);
-          scanner.pause(true); // pause after successful read
-          setTimeout(() => scanner.resume(), 3000); // resume after 3 seconds
+          scanner.pause(true);
+          setTimeout(() => scanner.resume(), 3000);
         }
       } catch (e) {
-        // Not JSON or invalid format
         handleVerifyResult(false, "Invalid QR Code format.");
       }
-    }, (error) => {
-      // parse error, ignore
-    });
+    }, () => {});
 
     return () => {
-      scanner.clear().catch(error => console.error("Failed to clear html5QrcodeScanner. ", error));
+      scanner.clear().catch(error => console.error("Failed to clear scanner.", error));
     };
   }, []);
 
@@ -56,14 +75,15 @@ export default function VerifyTab() {
         },
         body: JSON.stringify({ regId })
       });
-      
+
       const data = await res.json();
-      
+
       if (!res.ok) {
         throw new Error(data.error || 'Verification failed');
       }
-      
-      handleVerifyResult(true, `Success! Verified entry for: ${data.name}`);
+
+      handleVerifyResult(true, `✅ Entry verified for: ${data.name}`);
+      fetchAttendees(); // Refresh the live attendance list immediately
     } catch (err) {
       handleVerifyResult(false, err.message);
     }
@@ -78,10 +98,18 @@ export default function VerifyTab() {
     }, 5000);
   };
 
-  return (
-    <div>
-      <h1 className="text-2xl font-bold mb-6 text-white">Verify Entry</h1>
+  // Group attendees by event
+  const byEvent = attendees.reduce((acc, a) => {
+    if (!acc[a.event_title]) acc[a.event_title] = [];
+    acc[a.event_title].push(a);
+    return acc;
+  }, {});
 
+  return (
+    <div className="space-y-8">
+      <h1 className="text-2xl font-bold text-white">Verify Entry</h1>
+
+      {/* Scanner + Manual */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* QR Scanner */}
         <div className="bg-white/5 border border-borderDark rounded-xl p-6">
@@ -94,14 +122,14 @@ export default function VerifyTab() {
           `}</style>
         </div>
 
-        {/* Manual Entry */}
+        {/* Manual Entry + Status */}
         <div>
           <div className="bg-white/5 border border-borderDark rounded-xl p-6 mb-6">
             <h2 className="text-lg font-bold text-white mb-4">Manual Entry</h2>
             <form onSubmit={handleManualVerify} className="flex gap-4">
-              <input 
-                type="text" 
-                placeholder="Enter Registration ID (e.g. REG-...)" 
+              <input
+                type="text"
+                placeholder="Enter Registration ID (e.g. REG-...)"
                 className="flex-1 bg-transparent border-b border-white/20 text-white p-2 focus:outline-none focus:border-white transition-colors"
                 value={regIdInput}
                 onChange={e => setRegIdInput(e.target.value)}
@@ -112,7 +140,6 @@ export default function VerifyTab() {
             </form>
           </div>
 
-          {/* Status Message */}
           {statusMsg && (
             <div className={`p-4 rounded-xl border ${statusType === 'success' ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
               <p className="font-bold">{statusType === 'success' ? '✅ Valid' : '❌ Error'}</p>
@@ -120,6 +147,59 @@ export default function VerifyTab() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Live Attendance Board */}
+      <div className="bg-white/5 border border-borderDark rounded-xl p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2 bg-green-500/20 rounded-lg">
+            <Users className="w-5 h-5 text-green-400" />
+          </div>
+          <h2 className="text-lg font-bold text-white">Live Attendance</h2>
+          <span className="ml-auto text-sm text-textSecondary bg-white/5 px-3 py-1 rounded-full border border-borderDark">
+            {attendees.length} total attended
+          </span>
+        </div>
+
+        {loadingAttendees ? (
+          <p className="text-textSecondary">Loading attendance data...</p>
+        ) : attendees.length === 0 ? (
+          <p className="text-textSecondary text-center py-8">No attendees checked in yet. Scan a QR code to get started.</p>
+        ) : (
+          <div className="space-y-6">
+            {Object.entries(byEvent).map(([eventTitle, people]) => (
+              <div key={eventTitle}>
+                <h3 className="text-sm font-semibold text-accent uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-400" />
+                  {eventTitle}
+                  <span className="text-textSecondary font-normal normal-case">({people.length} attending)</span>
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left text-textSecondary min-w-[500px]">
+                    <thead>
+                      <tr className="text-xs uppercase text-textSecondary/60 border-b border-white/5">
+                        <th className="py-2 px-3">#</th>
+                        <th className="py-2 px-3">Name</th>
+                        <th className="py-2 px-3">Email</th>
+                        <th className="py-2 px-3">Reg ID</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {people.map((a, idx) => (
+                        <tr key={a.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <td className="py-2 px-3 text-textSecondary/60">{idx + 1}</td>
+                          <td className="py-2 px-3 font-medium text-white">{a.full_name}</td>
+                          <td className="py-2 px-3">{a.email}</td>
+                          <td className="py-2 px-3 font-mono text-xs">{a.reg_id}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

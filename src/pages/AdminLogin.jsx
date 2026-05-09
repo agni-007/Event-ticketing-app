@@ -30,7 +30,7 @@ export default function AdminLogin() {
       if (!res.ok) throw new Error(data?.error || 'Login failed');
 
       localStorage.setItem('adminToken', data.token);
-      navigate('/admin/dashboard');
+      navigate('/admin2005/dashboard');
     } catch (err) {
       setError(err.message);
     } finally {

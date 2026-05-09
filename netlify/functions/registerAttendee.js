@@ -1,10 +1,22 @@
 import { getDbConnection } from './db.js';
+import jwt from 'jsonwebtoken';
+
+const verifyAuth = (event) => {
+  const authHeader = event.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    throw new Error('Unauthorized');
+  }
+  const token = authHeader.split(' ')[1];
+  return jwt.verify(token, process.env.JWT_SECRET || 'secret');
+};
 
 export const handler = async (event, context) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
 
   let connection;
   try {
+    const user = verifyAuth(event);
+    
     const data = JSON.parse(event.body);
     const { eventId, fullName, email, phone } = data;
 
@@ -18,25 +30,27 @@ export const handler = async (event, context) => {
 
     connection = await getDbConnection();
     
-    // Check if event exists
     const [events] = await connection.query(`SELECT id FROM events WHERE id = ?`, [eventId]);
     if (events.length === 0) {
       return { statusCode: 404, body: JSON.stringify({ error: 'Event not found' }) };
     }
 
     await connection.query(`
-      INSERT INTO registrations (event_id, full_name, email, phone, client_id, reg_id, qr_data)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, [eventId, fullName, email, phone || '', clientId, regId, qrData]);
+      INSERT INTO registrations (event_id, user_id, full_name, email, phone, client_id, reg_id, qr_data, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+    `, [eventId, user.id, fullName, email, phone || '', clientId, regId, qrData]);
     
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clientId, regId, qrData })
+      body: JSON.stringify({ message: "Registration submitted! Pending admin approval." })
     };
   } catch (error) {
     console.error('Registration error:', error);
-    return { statusCode: 500, body: JSON.stringify({ error: 'Failed to register' }) };
+    return { 
+      statusCode: error.message === 'Unauthorized' ? 401 : 500, 
+      body: JSON.stringify({ error: error.message || 'Failed to register' }) 
+    };
   } finally {
     if (connection) connection.release();
   }
